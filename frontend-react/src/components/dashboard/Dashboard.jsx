@@ -1,29 +1,197 @@
-import React, { useEffect } from 'react'
-import axios from 'axios'
-import axiosInstance from '../../AxiosInstance'
+// import React, { useEffect, useState } from 'react'
+// import axios from 'axios'
+// import axiosInstance from '../../AxiosInstance'
 
-const Dashboard = () => {   
+// const Dashboard = () => {   
+//     const  [ticker,setTicker]=useState('')
+//     const [error,setError] = useState()
+
+//     useEffect(()=>{
+//         const fetchProtectedData = async () =>{
+//             try{
+//                 const response = await axiosInstance.get('/protected-view')
+               
+                
+//                 }
+//             catch(error){
+//                 console.error('Error fetching data',error)
+//             }
+//         }
+//         fetchProtectedData()
+//     },[])
+
+//     const handleSubmit = async (e) => {
+//         e.preventDefault();
+//         try{
+//             const response = await axiosInstance.post('/predict/',{
+//                 ticker:ticker
+//             });
+//             console.log(response.data);
+//             if(response.data.error){
+//                 setError(response.data.error)
+//             }
+
+            
+//         }   
+//         catch(error){
+//             console.error('There was error making the api request',error)
+//         }
+
+//     }
+
+//   return (
+//     <div className='container'>
+//         <div className="row">
+//             <div className="col-md-6 mx-auto">
+//                 <form onSubmit={handleSubmit}>
+//                     <input type="text" className='form-control' placeholder='enter stock ticker' 
+//                     onChange={(e)=>setTicker(e.target.value)} required
+//                     />
+//                     <small>{error && <div className='text-danger'>{error}</div>}</small>
+//                     <button type='submit' className='btn btn-info mt-3'>See Prediction</button>
+//                 </form>
+//             </div>
+//         </div>
+//     </div>
+//   )
+// }
+
+// export default Dashboard
+
+
+import React, { useEffect, useState } from 'react'
+import axiosInstance from '../../AxiosInstance'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faSpinner } from '@fortawesome/free-solid-svg-icons'
+
+const Dashboard = () => {
+    const [ticker, setTicker] = useState('')
+    const [error, setError] = useState(null)
+    const [success, setSuccess] = useState(null)
+    const [loading,setLoading] = useState(false)
+    const [plot,setPlot] = useState()
+    const [ma100,setMA100] = useState()
+    const [ma200,setMA200] = useState()
+    const [prediction,setPrediction]=useState()
+    const[mse,setMse]=useState()
+    const[rmse,setRMse]=useState()
+    const[r2,setR2]=useState()
     
 
-    useEffect(()=>{
-        const fetchProtectedData = async () =>{
-            try{
-                const response = await axiosInstance.get('/protected-view')
-                console.log('Success:',response.data);
-                
-                }
-            catch(error){
-                console.error('Error fetching data')
+
+    useEffect(() => {
+        const fetchProtectedData = async () => {
+            try {
+                await axiosInstance.get('/protected-view')
+            } catch (error) {
+                console.error('Error fetching protected data', error)
             }
         }
         fetchProtectedData()
-    },[])
+    }, [])
 
-  return (
-    <div className='text-light container'>
-        Dashboard
-    </div>
-  )
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+        setLoading(true)
+        try {
+            const response = await axiosInstance.post('/predict/', {
+                ticker: ticker
+            })
+            console.log(response.data);
+            const backendRoot = import.meta.env.VITE_BACKEND_ROOT
+            const plotUrl = `${backendRoot}${response.data.plot_img}`
+            const ma100Url = `${backendRoot}${response.data.plot_100_dma}`
+            const ma200Url = `${backendRoot}${response.data.plot_200_dma}`
+            const predictionUrl = `${backendRoot}${response.data.plot_prediction}`
+
+           
+            setPlot(plotUrl)
+            setMA100(ma100Url)
+            setMA200(ma200Url)
+            setPrediction(predictionUrl)
+            setMse(response.data.mse)
+            setRMse(response.data.rmse)
+            setR2(response.data.r2)
+            
+            
+            
+            //see plots
+            if (response.data.status === 'Error') {
+                setError(response.data.error || 'Invalid ticker')
+                setSuccess(null)
+            } else {
+                setError(null)
+                setSuccess('Prediction successful for ' + response.data.ticker)
+                console.log(response.data)
+            }
+        } catch (error) {
+            setError('No data found for the  given ticker')
+            setSuccess(null)
+            console.error('API request error:', error)
+        }finally{
+            setLoading(false)
+        }
+    }
+
+    return (
+        <div className='container'>
+            <div className='row'>
+                <div className='col-md-6 mx-auto'>
+                    <form onSubmit={handleSubmit}>
+                        <input
+                            type='text'
+                            className='form-control'
+                            placeholder='Enter stock ticker'
+                            onChange={(e) => {
+                                setTicker(e.target.value)
+                                setError(null)
+                                setSuccess(null)
+                            }}
+                            required
+                        />
+                        {error && <div className='text-danger mt-2'>{error}</div>}
+                        {success && <div className='text-success mt-2'>{success}</div>}
+                        <button type='submit' className='btn btn-info mt-3'>
+                            {loading ? <span><FontAwesomeIcon icon={faSpinner} spin />Please wait...</span>:'See Prediction'}
+                        </button>
+                    </form>
+                </div>
+                {/* Print prediction part */}
+                {prediction && (
+                    <div className="prediction mt-5">
+                    <div className="p-5">
+                        {plot && (
+                            <img src={plot} style={{maxWidth:'100%'}} alt='stock img' />
+                        )}
+                    </div>
+                    <div className="p-3">
+                        {ma100 && (
+                            <img src={ma100} style={{maxWidth:'100%'}} alt='stock img' />
+                        )}
+                    </div>
+                    <div className="p-3">
+                        {ma200 && (
+                            <img src={ma200} style={{maxWidth:'100%'}} alt='stock img' />
+                        )}
+                    </div>
+                     <div className="p-3">
+                        {prediction && (
+                            <img src={prediction} style={{maxWidth:'100%'}} alt='stock img' />
+                        )}
+                    </div>
+                    <div className="text-light p-3">
+                        <h4>Model Evaluation</h4>
+                        <p>Mean squared error(MSE):{mse}</p>
+                        <p>Root squared error(RMSE):{rmse}</p>
+                        <p>R squared error(R2):{r2}</p>
+
+                    </div>
+                </div>
+                )}
+                
+            </div>
+        </div>
+    )
 }
 
 export default Dashboard
